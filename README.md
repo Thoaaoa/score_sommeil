@@ -1,2 +1,2 @@
 # score_sommeil
-Importer un score de sommeil sur une garmin qui n'en possède pas 
+Import a sleep score for garmin watch that don't have one implemented originally
