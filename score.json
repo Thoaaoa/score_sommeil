@@ -1,0 +1,26 @@
+{
+  "date": "2026-07-08",
+  "score": 92,
+  "qualite": "Excellent",
+  "sous_scores": {
+    "duree": 30.0,
+    "efficacite": 20.0,
+    "profond": 15.0,
+    "rem": 9.7,
+    "continuite": 10,
+    "fc": 7.6
+  },
+  "mesures": {
+    "tst_h": 7.18,
+    "profond_pct": 14.6,
+    "rem_pct": 33.9,
+    "leger_pct": 51.5,
+    "efficacite_pct": 99.8,
+    "waso_min": 1.0,
+    "reveils": null,
+    "agitation": null,
+    "fc_sommeil": 51.1,
+    "fc_repos": 45,
+    "stress_sommeil": null
+  }
+}

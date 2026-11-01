@@ -1,0 +1,24 @@
+<?xml version="1.0"?>
+<iq:manifest xmlns:iq="http://www.garmin.com/xml/connectiq" version="3">
+    <!--
+      Widget "Score Sommeil" pour Forerunner 55.
+      Si le build échoue sur ce manifest, le plus simple est de créer un
+      nouveau projet widget via l'extension VS Code (Monkey C: New Project),
+      de cocher fr55, puis de remplacer les fichiers source/ et resources/
+      par ceux fournis ici.
+    -->
+    <iq:application id="54f35daa39c24025bc1c0165534ba102" type="widget" name="@Strings.AppName" entry="SommeilApp" launcherIcon="@Drawables.LauncherIcon" minSdkVersion="3.2.0" version="1.0.0">
+        <iq:products>
+            <iq:product id="fr55"/>
+        </iq:products>
+        <iq:permissions>
+            <iq:uses-permission id="Communications"/>
+        </iq:permissions>
+        <iq:languages>
+            <iq:language>eng</iq:language>
+            <iq:language>fra</iq:language>
+            <iq:language>fre</iq:language>
+        </iq:languages>
+        <iq:barrels/>
+    </iq:application>
+</iq:manifest>

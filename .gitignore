@@ -1,0 +1,30 @@
+# ---- Secrets : ne JAMAIS publier ----------------------------------------
+developer_key
+*.der
+*.pem
+.env
+.garmin_tokens
+
+# ---- SDK Connect IQ telecharge localement (6,8 Mo, pas du code) ----------
+sdkmanager.exe
+WebView2Loader.dll
+*.dll
+/resources/
+
+# ---- Artefacts de compilation Monkey C -----------------------------------
+/bin/
+/gen/
+/mir/
+/internal-mir/
+sommeilfr55/bin/
+*.prg
+*.prg.debug.xml
+*.mir
+*.mcgen
+*.mbc
+
+# ---- Python ---------------------------------------------------------------
+__pycache__/
+*.pyc
+.venv/
+venv/
