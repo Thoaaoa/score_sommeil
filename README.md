@@ -1,106 +1,141 @@
-# Score de sommeil /100 sur Garmin Forerunner 55
+# Score de sommeil /100 pour Garmin Forerunner 55
 
-La FR55 mesure le sommeil (stades, FC) mais ne calcule pas le score natif de
-Garmin (fonction Firstbeat réservée aux modèles supérieurs). L'API Connect IQ
-embarquée n'exposant pas les stades de sommeil aux apps tierces, le score est
-calculé **hors montre** à partir des données Garmin Connect, puis renvoyé sur
-la montre.
-
-## Architecture
+La FR55 enregistre les stades de sommeil et la fréquence cardiaque nocturne,
+mais ne calcule pas de score de sommeil : la fonction Firstbeat est réservée aux
+modèles supérieurs. L'API Connect IQ embarquée n'expose pas les stades aux
+applications tierces, le score est donc calculé hors montre à partir des données
+Garmin Connect, puis renvoyé sur la montre.
 
 ```
-FR55 --(sync BLE matin)--> app Garmin Connect --(cloud)--> Garmin Connect Web
-                                                                |
-                                              sleep_score.py (ton PC, planifié)
-                                                |                    |
-                                     score.json sur GitHub     notification ntfy
-                                                |                    |
-                              widget Connect IQ sur la FR55    notif miroir montre
-                                        (v2)                        (v1)
+FR55  →  Garmin Connect  →  sleep_score.py  →  score.json (GitHub Pages)  →  widget FR55
 ```
 
-## Modèle de score (sources)
+Le script peut aussi envoyer une notification ntfy que la montre affiche en
+miroir du téléphone. C'est la variante la plus rapide, sans rien compiler.
 
-| Composante | Poids | Cible | Source |
-|---|---|---|---|
-| Durée totale | 30 | 7–9 h | Hirshkowitz et al. 2015, *Sleep Health* (NSF) ; Watson et al. 2015, *Sleep* (AASM/SRS) |
-| Efficacité | 20 | ≥ 85 % | Ohayon et al. 2017, *Sleep Health* (NSF) |
-| Sommeil profond | 15 | 13–23 % | Ohayon et al. 2004, *Sleep* (méta-analyse) |
-| Sommeil REM | 15 | 20–25 % | Ohayon et al. 2004, *Sleep* |
-| Continuité (WASO, réveils) | 10 | WASO ≤ 20 min, ≤ 1 réveil | Ohayon et al. 2017 |
-| FC nocturne vs FC repos | 10 | delta ≤ 3 bpm | Trinder et al. 2001, *J Sleep Res* |
+## Le score
 
-Les stades pèsent 30 pts au total car leur mesure au poignet est approximative
-(Chinoy et al. 2021, *Sleep*, comparaison trackers vs polysomnographie).
-Composante manquante → score renormalisé sur 100.
+| Composante | Poids | Cible |
+|---|---|---|
+| Durée totale | 30 | 7–9 h |
+| Efficacité | 20 | ≥ 85 % |
+| Sommeil profond | 15 | 13–23 % |
+| Sommeil REM | 15 | 20–25 % |
+| Continuité (WASO, réveils) | 10 | WASO ≤ 20 min, ≤ 1 réveil |
+| FC nocturne vs FC repos | 10 | écart ≤ 3 bpm |
 
-## Étape 1 — Le script (15 min)
+Durée et efficacité pèsent la moitié du score parce que ce sont les deux mesures
+fiables. Les stades ne valent que 30 points à eux deux : leur classification au
+poignet reste approximative face à la polysomnographie. Si une composante manque
+(REM non détecté par exemple), le score est renormalisé sur 100.
 
-1. Python 3.10+ puis : `pip install garminconnect requests`
-2. Premier lancement pour vérifier les champs sur TES données :
-   `python sleep_score.py --debug --no-publish`
-   (email + mot de passe Garmin demandés une fois, tokens mis en cache ensuite ;
-   si un champ du JSON brut diffère de ce que lit le script, adapter
-   `extraire_mesures()` — tout est en `.get()` défensif)
-3. Lancement normal : `python sleep_score.py` → affiche le score + écrit `score.json`
+Les cibles viennent de Hirshkowitz et al. 2015 (*Sleep Health*) et Watson et al.
+2015 (*Sleep*) pour la durée, Ohayon et al. 2017 (*Sleep Health*) pour
+l'efficacité et la continuité, Ohayon et al. 2004 (*Sleep*) pour les stades, et
+Trinder et al. 2001 (*J Sleep Res*) pour la fréquence cardiaque nocturne. La
+réserve sur la mesure au poignet vient de Chinoy et al. 2021 (*Sleep*).
 
-Important : la montre doit avoir synchronisé avec le téléphone avant (ouvrir
-l'app Garmin Connect au réveil suffit). Sinon le script sort en "pas de données",
-il suffit de le relancer plus tard.
+## Le script
 
-## Étape 2 — v1 rapide : notification sur la montre (10 min, zéro Monkey C)
+Python 3.10 ou plus récent, puis :
 
-1. Créer un topic ntfy (un nom unique difficile à deviner, ex. `sommeil-x7Kp2q`)
-2. Installer l'app ntfy sur l'iPhone et s'abonner au topic
-3. `export NTFY_TOPIC=sommeil-x7Kp2q` (ou variable d'env. Windows) puis lancer le script
-4. La notification push arrive sur le téléphone → la FR55 l'affiche en miroir
+```bash
+pip install garminconnect requests
+```
 
-## Étape 3 — Planification automatique
+Au premier lancement, vérifier que les champs renvoyés par l'API correspondent
+bien à ce que le script lit :
 
-- **Windows** : Planificateur de tâches → nouvelle tâche → déclencheur
-  quotidien 8h30 (+ une 2e à 10h en secours) → action
-  `python C:\chemin\sleep_score.py`
-- **Linux/Mac** : `crontab -e` → `30 8 * * * cd /chemin && python3 sleep_score.py`
-- **Variante sans PC allumé** : GitHub Actions avec un `schedule: cron` et les
-  identifiants en *secrets*. Attention : la connexion Garmin depuis une IP de
-  datacenter peut déclencher des vérifications ; garder le cache de tokens en
-  artefact aide.
+```bash
+python sleep_score.py --debug --no-publish
+```
 
-## Étape 4 — Publication pour le widget (GitHub Pages)
+L'email et le mot de passe Garmin ne sont demandés qu'une fois, les tokens sont
+ensuite mis en cache dans `~/.garmin_tokens`. Si un champ du JSON brut ne
+correspond pas, c'est `extraire_mesures()` qu'il faut adapter : tous les accès y
+sont défensifs.
 
-1. Créer un repo **public** (ex. `sommeil`), y mettre un `score.json` vide
-2. Settings → Pages → Deploy from branch `main` → le fichier devient accessible à
-   `https://TON-PSEUDO.github.io/sommeil/score.json` (Content-Type
-   `application/json`, requis par Connect IQ)
-3. Créer un token fine-grained (Settings → Developer settings) limité à ce repo,
-   permission *Contents: Read and write*
-4. Variables d'environnement : `GITHUB_TOKEN=...` et `GITHUB_REPO=TON-PSEUDO/sommeil`
-5. Le script pousse le score à chaque exécution (délai Pages : ~1 min)
+Ensuite, en usage normal :
 
-## Étape 5 — v2 : le widget sur la FR55
+```bash
+python sleep_score.py
+```
 
-1. Installer **VS Code** + extension **Monkey C** (Garmin)
-2. Via l'extension : *Verify Installation* → elle installe le **Connect IQ SDK**
-   et te fait créer une **clé développeur ** (guidé)
-3. `Ctrl+Shift+P` → *Monkey C: New Project* → type **Widget**, cocher **fr55**
-   (chemin le plus sûr : le manifest généré est garanti valide)
-4. Remplacer `source/` et `resources/` du projet par ceux du dossier
-   `widget-fr55/` fourni
-5. Dans `SommeilView.mc`, remplacer `SCORE_URL` par ta vraie URL GitHub Pages
-6. Tester : `Ctrl+Shift+P` → *Monkey C: Run* (simulateur, choisir fr55)
-7. Compiler : *Monkey C: Build for Device* → cible fr55 → produit un `.prg`
-8. Brancher la FR55 en USB → copier le `.prg` dans `GARMIN/APPS/` → éjecter
-9. Sur la montre : maintenir UP → Paramètres → Widgets (ou depuis l'app Garmin
-   Connect IQ) → ajouter "Score Sommeil" à la boucle de widgets
-10. Depuis le cadran, DOWN pour scroller jusqu'au widget : il va chercher le
-    score (téléphone connecté en Bluetooth nécessaire) et garde en cache le
-    dernier score connu pour l'afficher hors connexion
+La montre doit avoir synchronisé avec le téléphone avant. Ouvrir l'app Garmin
+Connect au réveil suffit. Sinon le script sort en « pas de données » et il faut
+le relancer plus tard.
 
-## Limites à connaître
+## Notification sur la montre
 
-- API Garmin Connect **non officielle** : usage personnel à faible volume,
-  peut casser lors d'un changement côté Garmin (d'où `--debug`)
-- Le widget se rafraîchit à l'ouverture, pas en push (limite BLE des widgets)
-- Le score est **estimatif** : la classification des stades au poignet reste
-  approximative face à la polysomnographie ; c'est un outil de tendance,
-  pas un diagnostic
+Le chemin le plus court, sans toucher à Monkey C :
+
+1. Créer un topic ntfy avec un nom difficile à deviner, par exemple `sommeil-x7Kp2q`
+2. Installer l'app ntfy sur le téléphone et s'abonner au topic
+3. Définir la variable d'environnement `NTFY_TOPIC`, puis lancer le script
+
+La notification arrive sur le téléphone et la FR55 l'affiche en miroir.
+
+## Lancement automatique
+
+Sur Windows, par le Planificateur de tâches : nouvelle tâche, déclencheur
+quotidien à 8h30, action `python C:\chemin\sleep_score.py`. J'en ai ajouté une
+seconde à 10h au cas où la synchro du matin n'ait pas eu lieu.
+
+Sur Linux ou macOS, `crontab -e` :
+
+```
+30 8 * * * cd /chemin && python3 sleep_score.py
+```
+
+Pour que ça tourne sans garder le PC allumé, GitHub Actions avec un
+`schedule: cron` et les identifiants en secrets fonctionne également. À savoir :
+la connexion Garmin depuis une IP de datacenter peut déclencher des
+vérifications supplémentaires, et conserver le cache de tokens en artefact
+limite le problème.
+
+## Publication du score
+
+Le widget lit le score sur GitHub Pages, qui sert le `Content-Type`
+`application/json` exigé par Connect IQ.
+
+1. Un dépôt public, avec un `score.json` à la racine
+2. Settings → Pages → Deploy from branch `main`. Le fichier devient accessible à
+   `https://TON-PSEUDO.github.io/TON-DEPOT/score.json`
+3. Créer un token fine-grained limité à ce dépôt, permission *Contents:
+   Read and write*
+4. Définir `GITHUB_TOKEN` et `GITHUB_REPO` (au format `pseudo/depot`)
+
+Le script pousse alors le score à chaque exécution. Compter environ une minute
+avant que Pages serve la nouvelle version.
+
+## Le widget
+
+1. VS Code avec l'extension Monkey C
+2. Lancer *Verify Installation* depuis l'extension : elle installe le Connect IQ
+   SDK et guide la création de la clé développeur
+3. `Ctrl+Shift+P` → *Monkey C: New Project*, type Widget, cocher fr55. Passer par
+   là garantit un manifest valide
+4. Remplacer les dossiers `source/` et `resources/` du projet généré par ceux de
+   `sommeilfr55/`
+5. Dans le fichier de la vue, remplacer `SCORE_URL` par ton URL GitHub Pages
+6. *Monkey C: Run* pour tester dans le simulateur, puis *Build for Device* pour
+   produire le `.prg`
+7. Brancher la FR55 en USB, copier le `.prg` dans `GARMIN/APPS/`, éjecter
+8. Sur la montre : maintenir UP → Paramètres → Widgets, ajouter « Score Sommeil »
+
+Depuis le cadran, DOWN fait défiler jusqu'au widget. Il récupère le score à
+l'ouverture, ce qui suppose le téléphone connecté en Bluetooth, et garde le
+dernier score en cache pour l'afficher hors connexion.
+
+## Limites
+
+L'API Garmin Connect utilisée ici n'est pas officielle. Usage personnel à faible
+volume, et elle peut casser du jour au lendemain si Garmin change quelque chose,
+d'où l'option `--debug` pour diagnostiquer.
+
+Le widget se rafraîchit à l'ouverture et non en push. C'est une limite des
+widgets Connect IQ, pas du code.
+
+Le score reste une estimation. La classification des stades au poignet est
+approximative comparée à la polysomnographie : c'est un indicateur de tendance,
+pas un diagnostic.
