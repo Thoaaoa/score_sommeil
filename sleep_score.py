@@ -64,7 +64,13 @@ import requests
 from garminconnect import Garmin
 
 TOKEN_DIR = os.path.expanduser("~/.garmin_tokens")
-FICHIER_SORTIE = "score.json"
+# Detail complet des mesures, garde en local uniquement (fichier gitignore).
+# Separe de score.json, qui est suivi par git et publie : y ecrire le detail
+# exposerait les donnees de sante au premier "git add".
+# Chemin absolu car la tache planifiee s'execute depuis C:\Windows\System32.
+FICHIER_SORTIE = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "score_detail.json"
+)
 
 POIDS = {
     "duree": 30,
@@ -182,12 +188,15 @@ def obtenir_client():
         pass
     email = os.environ.get("GARMIN_EMAIL") or input("Email Garmin : ")
     mdp = os.environ.get("GARMIN_PASSWORD") or getpass.getpass("Mot de passe : ")
-    client = Garmin(email=email, password=mdp)
-    client.login()
-    try:
-        client.garth.dump(TOKEN_DIR)
-    except Exception:
-        print("(avertissement : impossible de sauvegarder les tokens)")
+    client = Garmin(
+        email=email,
+        password=mdp,
+        prompt_mfa=lambda: input("Code de validation Garmin : "),
+    )
+    # Passer TOKEN_DIR ici est ce qui declenche la sauvegarde des tokens :
+    # sans lui, le mot de passe serait redemande a chaque execution et la
+    # tache planifiee echouerait.
+    client.login(TOKEN_DIR)
     return client
 
 
@@ -286,11 +295,26 @@ def libelle(score):
 
 
 def publier_github(payload):
+    """Publie le score sur GitHub Pages pour le widget.
+
+    Ne publie que les trois champs lus par la montre. Le detail des mesures
+    (frequence cardiaque, stades, horaires) reste dans le fichier local : le
+    depot est public et chaque publication cree un commit conserve a vie.
+    """
     token = os.environ.get("GITHUB_TOKEN")
     repo = os.environ.get("GITHUB_REPO")
     chemin = os.environ.get("GITHUB_FILE", "score.json")
     if not token or not repo:
+        print("-> publication GitHub ignoree : GITHUB_TOKEN ou GITHUB_REPO absent "
+              "(variable definie mais terminal pas relance ?)")
         return False
+
+    public = {
+        "date": payload["date"],
+        "score": payload["score"],
+        "qualite": payload["qualite"],
+    }
+
     api = f"https://api.github.com/repos/{repo}/contents/{chemin}"
     entetes = {"Authorization": f"Bearer {token}",
                "Accept": "application/vnd.github+json"}
@@ -299,12 +323,15 @@ def publier_github(payload):
     corps = {
         "message": f"score sommeil {payload['date']}",
         "content": base64.b64encode(
-            json.dumps(payload, ensure_ascii=False).encode()
+            json.dumps(public, ensure_ascii=False).encode()
         ).decode(),
     }
     if sha:
         corps["sha"] = sha
     r = requests.put(api, headers=entetes, json=corps, timeout=20)
+    if not r.ok:
+        print(f"-> echec de la publication GitHub : HTTP {r.status_code} "
+              f"{r.json().get('message', '')}")
     return r.ok
 
 

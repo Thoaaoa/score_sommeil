@@ -1,3 +1,8 @@
+# ---- Donnees de sante : le depot est public ------------------------------
+# score.json (suivi) ne contient que date/score/qualite, publie via l'API.
+# Le detail des mesures (FC, stades, horaires) reste ici et n'en sort pas.
+score_detail.json
+
 # ---- Secrets : ne JAMAIS publier ----------------------------------------
 developer_key
 *.der

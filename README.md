@@ -105,8 +105,14 @@ Le widget lit le score sur GitHub Pages, qui sert le `Content-Type`
    Read and write*
 4. Définir `GITHUB_TOKEN` et `GITHUB_REPO` (au format `pseudo/depot`)
 
-Le script pousse alors le score à chaque exécution. Compter environ une minute
-avant que Pages serve la nouvelle version.
+Le script pousse alors le score à chaque exécution. Pages met le fichier en
+cache dix minutes sur son réseau de diffusion : le widget peut donc afficher un
+score légèrement en retard juste après une publication.
+
+Seuls les trois champs lus par la montre sont publiés — `date`, `score` et
+`qualite`. Le détail des mesures (fréquence cardiaque, stades, horaires) reste
+dans `score_detail.json`, qui n'est pas suivi par git : le dépôt est public et
+chaque publication crée un commit conservé indéfiniment.
 
 ## Le widget
 
