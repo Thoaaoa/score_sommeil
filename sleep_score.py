@@ -340,11 +340,18 @@ def publier_ntfy(payload):
     if not topic:
         return False
     m = payload["mesures"]
+
+    def val(x, unite):
+        # Une mesure absente (REM non detecte par exemple) afficherait "None"
+        return f"{x} {unite}" if x is not None else "—"
+
     msg = (f"{payload['score']}/100 ({payload['qualite']})\n"
-           f"Durée {m['tst_h']} h · Profond {m['profond_pct']} % · "
-           f"REM {m['rem_pct']} % · Efficacité {m['efficacite_pct']} %")
+           f"Durée {val(m['tst_h'], 'h')} · Profond {val(m['profond_pct'], '%')} · "
+           f"REM {val(m['rem_pct'], '%')} · Efficacité {val(m['efficacite_pct'], '%')}")
     r = requests.post(f"https://ntfy.sh/{topic}", data=msg.encode("utf-8"),
                       headers={"Title": f"Sommeil {payload['date']}"}, timeout=20)
+    if not r.ok:
+        print(f"-> echec de la notification ntfy : HTTP {r.status_code}")
     return r.ok
 
 

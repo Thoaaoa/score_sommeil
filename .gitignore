@@ -3,6 +3,9 @@
 # Le detail des mesures (FC, stades, horaires) reste ici et n'en sort pas.
 score_detail.json
 
+# Nom du topic ntfy : quiconque le connait peut lire les notifications.
+ntfy_topic.txt
+
 # ---- Secrets : ne JAMAIS publier ----------------------------------------
 developer_key
 *.der

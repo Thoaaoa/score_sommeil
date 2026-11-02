@@ -75,6 +75,12 @@ Le chemin le plus court, sans toucher à Monkey C :
 
 La notification arrive sur le téléphone et la FR55 l'affiche en miroir.
 
+Un topic ntfy n'a pas de mot de passe : son nom *est* le secret, et quiconque
+le connaît peut lire les notifications. D'où le nom aléatoire, gardé dans
+`ntfy_topic.txt` qui n'est pas suivi par git. C'est aussi pourquoi la
+notification peut contenir le détail des mesures alors que le fichier publié
+sur GitHub, lui, n'en contient pas.
+
 ## Lancement automatique
 
 Sur Windows, par le Planificateur de tâches : nouvelle tâche, déclencheur
