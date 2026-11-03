@@ -363,9 +363,24 @@ def main():
     ap.add_argument("--date", help="AAAA-MM-JJ (défaut : aujourd'hui)")
     ap.add_argument("--debug", action="store_true", help="affiche le JSON brut")
     ap.add_argument("--no-publish", action="store_true")
+    ap.add_argument("--force", action="store_true",
+                    help="recalcule meme si le score du jour existe deja")
     args = ap.parse_args()
 
     date_str = args.date or datetime.date.today().isoformat()
+
+    # La tache se declenche aussi a l'ouverture de session, donc plusieurs fois
+    # par jour. Sans ce garde-fou, chaque lancement referait un appel a Garmin
+    # et un commit identique sur le depot.
+    if not args.force and os.path.exists(FICHIER_SORTIE):
+        try:
+            with open(FICHIER_SORTIE, encoding="utf-8") as f:
+                if json.load(f).get("date") == date_str:
+                    print(f"Score du {date_str} deja calcule. --force pour refaire.")
+                    return
+        except (ValueError, OSError):
+            pass  # fichier illisible : on recalcule
+
     client = obtenir_client()
     mesures = extraire_mesures(client, date_str, debug=args.debug)
 
